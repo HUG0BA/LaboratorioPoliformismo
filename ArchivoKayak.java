@@ -5,77 +5,145 @@ import java.io.PrintWriter;
 import java.util.ArrayList;
 
 public class ArchivoKayak{
-    private File archivoRestaurante;
+    private File archivoUsuario;
+    private File archivoReserva;
+    
     
 
     /** 
      * @param nombreArchivo
      * @description Constructor asgina parámetros ingresados para crear nuevo archivo
      */
-    public ArchivoKayak(String nombreArchivoRestaurante){
-        archivoRestaurante = new File(nombreArchivoRestaurante);
+    public ArchivoKayak(String nombreArchivoUsuario, String nombreArchivoReserva){
+        archivoUsuario = new File(nombreArchivoUsuario);
+        archivoReserva = new File(nombreArchivoReserva);
+        
     }
 
-    public void escribirArchivo(ArrayList<Restaurante> restaurantes) throws Exception{
-        PrintWriter escritor = new PrintWriter(archivoRestaurante, "UTF-8");
+    
+    /** 
+     * @param usuarios
+     * @throws Exception
+     * @description Recibe un ArrayList con todos los usuarios actualmente en el programa. Verfica si ya existe un archivo y lo limpia para poder sobreescribir si en caso hay información actualizada en el csv.
+     */
+    public void escribirArchivoUsuario(ArrayList<Usuario> usuarios) throws Exception{
+        PrintWriter escritor = new PrintWriter(archivoUsuario, "UTF-8");
         String linea = "";
-        if(archivoRestaurante.length() > 0){
-            PrintWriter cleaner = new PrintWriter(archivoRestaurante, "UTF-8");
+        if(archivoUsuario.length() > 0){
+            PrintWriter cleaner = new PrintWriter(archivoUsuario, "UTF-8");
             cleaner.write("");
             cleaner.close();
         }
-        linea = "id_restaurante,nombre_restaurante,descripcion,horario,disponibilidad,productos";
+        linea = "username,password,tipo_plan";
         escritor.println(linea);
 
-        for(Restaurante restaurante : restaurantes){
-            linea = restaurante.getIdRest() + "," + restaurante.getNombre() + "," + restaurante.getDes() + "," + restaurante.getHorario() + "," + restaurante.getDisp(); 
-            ArrayList<Producto> produtos = restaurante.getProductos();
-            String textProductos = "";
-            for(Producto producto : produtos){
-                textProductos = textProductos + producto.getIdProducto() + ";" + producto.getTitulo() + ";" + producto.getDetalles() + ";" + producto.getCosto() + ";" + producto.getDisponible() + "|";
-            }
-            linea = linea + "," + textProductos;
+        for(Usuario usuario : usuarios){
+            linea = usuario.getNombre() + "," + usuario.getPassword() + "," + usuario.traducirPlan();
             escritor.println(linea);    
         }
         escritor.close();
 
     }
 
+    
     /** 
-     * @return ArrayList<Dispositivo>
-     * @description Método obtener datos del archivo CSV y convertirlos a las clases de Celular y Computadora
+     * @param reservas
+     * @param confirmaciones
      * @throws Exception
+     * @description Recibe como parametros dos ArrayList que contienen la información del modo reserva y del modo confirmación. Comprueba si el archivo ya existe y de lo contrario lo creo con los encabezados correctos y después añade la información.
      */
-    public ArrayList<Restaurante> leerArchivo() throws Exception{
-        ArrayList<Restaurante> restaurantes = new ArrayList<Restaurante>();
-
-        if(!archivoRestaurante.exists()){
-            return restaurantes;
+    public void escribirArchivoReserva(ArrayList<Reserva> reservas, ArrayList<Confirmacion> confirmaciones) throws Exception{
+        PrintWriter escritor = new PrintWriter(archivoReserva, "UTF-8");
+        String linea = "";
+        if(archivoReserva.length() == 0){
+            /*PrintWriter cleaner = new PrintWriter(archivoReserva, "UTF-8");
+            cleaner.write("");
+            cleaner.close();*/
+            linea = "username,fecha,tipo_vuelo,cantidad_boletos,aerolinea,tarjeta,cantidad_cuotas,clase_vuelo,numero_asiento,cantidad_maletas";
+            escritor.println(linea);
+            
         }
         
-        BufferedReader br = new BufferedReader(new FileReader(archivoRestaurante));
+
+        int i = 0;
+        for(Reserva reserva : reservas){
+            linea = reserva.getUsername() + "," + reserva.getFecha() + "," + reserva.traducirIda() + "," + reserva.getBoletos() + "," + reserva.getAerolinea() + "," + confirmaciones.get(i).getTarjeta() + "," + confirmaciones.get(i).getCuotas() + "," + confirmaciones.get(i).traducirClase() + "," + confirmaciones.get(i).getNumeroAsiento() + "," + confirmaciones.get(i).getCantidadMaletas();
+            escritor.println(linea);    
+        }
+        escritor.close();
+    }
+
+    /** 
+     * @return ArrayList<Usuario>
+     * @description Obtiene todos los datos del archivo CSV de los usuarios y convierte los strings de cada columan en un objeto tipo usuario. Este objeto se añade a una lista que contiene todos los usuarios registrados en el CSV y se devuelve.
+     * @throws Exception
+     */
+    public ArrayList<Usuario> leerUsuarios() throws Exception{
+        ArrayList<Usuario> usuarios = new ArrayList<Usuario>();
+
+        if(!archivoUsuario.exists()){
+            return usuarios;
+        }
+        
+        BufferedReader br = new BufferedReader(new FileReader(archivoUsuario));
         String line = "";
 
 
-        while((line = br.readLine()) != null){
-            
+        while((line = br.readLine()) != null){       
             String[] values = line.split(",");
-            ArrayList<Producto> productos = new ArrayList<Producto>();
-            if(values[5] != null){
-                String[] textProductos  = values[5].split("|");  
-                for(String textProducto : textProductos){
-                    String[] infoProducto = textProducto.split(";");
-                    Producto producto = new Producto(Integer.parseInt(infoProducto[0]), infoProducto[1], infoProducto[2], Double.parseDouble(infoProducto[3]), Boolean.parseBoolean(infoProducto[4]));
-                    productos.add(producto);
-                } 
+
+            boolean plan = false;
+            if(values[2].toLowerCase().contains("premium")){
+                plan = true;
+            }else if(values[2].toLowerCase().contains("base")){
+                plan = false;
+            }else{
+                continue;
             }
-             
-            Restaurante restaurante = new Restaurante(Integer.parseInt(values[0]), values[1], values[2], values[3], Boolean.parseBoolean(values[4]), productos);
-            restaurantes.add(restaurante);
+
+            Usuario usuario = new Usuario(values[0], values[1], plan);
+            usuarios.add(usuario);   
         }
         
         br.close();
 
-        return restaurantes;
+        return usuarios;
+    }
+
+    
+    /** 
+     * @return ArrayList<Reserva>
+     * @description Obtiene toda la información del CSV pero únicamente convierte la parte del modo reserva a objetos de tipo reserva pues la confirmación no puede ser cambiada por el usuario (sin devoluciones)
+     * @throws Exception
+     */
+    public ArrayList<Reserva> leerReservas() throws Exception{
+        ArrayList<Reserva> reservas = new ArrayList<Reserva>();
+
+        if(!archivoReserva.exists()){
+            return reservas;
+        }
+        
+        BufferedReader br = new BufferedReader(new FileReader(archivoReserva));
+        String line = "";
+
+        
+
+        while((line = br.readLine()) != null){       
+            String[] values = line.split(",");
+
+            boolean soloIda = false;
+            if(values[2].toLowerCase().contains("solo")){
+                soloIda = true;
+            }
+            else if(values[2].toLowerCase().contains("vuelta")){
+                soloIda = false;
+            }
+            Reserva reserva = new Reserva(values[1], soloIda, Integer.parseInt(values[3]), values[4], values[0]);
+            reservas.add(reserva);   
+        }
+        
+        br.close();
+
+        return reservas;
     }
 }
